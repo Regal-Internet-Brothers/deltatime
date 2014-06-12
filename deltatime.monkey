@@ -6,7 +6,7 @@ Public
 #If BRL_GAMETARGET_IMPLEMENTED
 	Import mojo.app
 #Else
-	Import time
+	Import mojoemulator
 #End
 
 ' Classes:
