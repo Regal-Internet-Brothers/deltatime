@@ -16,41 +16,73 @@ Class DeltaTime
 	Global Default_DeltaLog_Size:Int = 20
 	
 	' Constructor(s):
-	Method New(FPS:IntObject=Null)
-		' Ensure we have a frame-rate to work with:
-		If (FPS = Null) Then
-			FPS = UpdateRate()
-			
-			If (FPS <> Null And FPS <> 0) Then
-				Self.UseUpdateRate = True
-			Endif
+	Method New(MinimumDelta:Float=0.0)
+		Construct(MinimumDelta)
+	End
+	
+	Method New(FPS:Int, MinimumDelta:Float=0.0)
+		Construct(FPS, MinimumDelta)
+	End
+	
+	Method Construct:DeltaTime(MinimumDelta:Float=0.0)
+		' Local variable(s):
+		Local FPS:= UpdateRate()
+		
+		If (FPS <> 0) Then
+			Self.UseUpdateRate = True
 		Endif
 		
-		If (FPS = Null Or FPS = 0) Then FPS = Default_FPS
+		' Call the main implementation.
+		Return Construct(FPS)
+	End
+	
+	Method Construct:DeltaTime(FPS:Int, MinimumDelta:Float=0.0)
+		If (FPS = 0) Then
+			FPS = Default_FPS
+		Endif
 		
 		' Assign the ideal frame-rate to the input.
 		Self.IdealFPS = FPS
-		
-		' Set the ideal interval to 1.0 / the number of milliseconds per-frame.
-		Self.IdealInterval = 1/(1000/Float(FPS))
 		
 		' Set the previous frame's time value to the current time.
 		Self.TimePreviousFrame = Millisecs()
 		
 		' Assign the current frame's time-value to the same as the previous frame.
 		Self.TimeCurrentFrame = Self.TimePreviousFrame ' Millisecs()
+		
+		' Set the minimum delta-value.
+		Self.MinimumDelta = MinimumDelta
+		
+		' Return this object so it may be pooled.
+		Return Self
 	End
 	
 	' Destructor(s):
-	' Nothing so far.
+	
+	' This is just a quick wrapper for 'Free'.
+	Method Discard:DeltaTime()
+		Return Free()
+	End
+	
+	Method Free:DeltaTime()
+		Reset()
+		
+		' Return this object so it may be pooled.
+		Return Self
+	End
 	
 	' Methods:
-	Method Reset:Void(FPS:IntObject=Null, CatchUp:Bool=False)
-		If (FPS <> Null) Then
-			IdealFPS = FPS
-			IdealInterval = 1/(1000/Float(IdealFPS))
-		Endif
+	Method Reset:Void(FPS:Int, CatchUp:Bool=False)
+		' Set the ideal framerate.
+		IdealFPS = FPS
 		
+		' Call the main implementation.
+		Reset(CatchUp)
+		
+		Return
+	End
+	
+	Method Reset:Void(CatchUp:Bool=False)
 		' Set the previous frame's time value to the current time.
 		If (Not CatchUp) Then
 			TimePreviousFrame = Millisecs()
@@ -67,6 +99,19 @@ Class DeltaTime
 		' Set the delta-node to zero.
 		DeltaNode = 0
 		
+		' Reset the delta-log.
+		ResetLog()
+		
+		Return
+	End
+	
+	Method ResetLog:Void()
+		ResetLog(DeltaLog)
+		
+		Return
+	End
+	
+	Method ResetLog:Void(DeltaLog:Float[])
 		' Set all of the delta-log's elements to 0.0.
 		For Local Index:Int = 0 Until DeltaLog.Length()
 			DeltaLog[Index] = 0.0
@@ -106,16 +151,34 @@ Class DeltaTime
 		' Fix the delta value. (Calculate an average/mean)
 		Delta /= DeltaLog.Length()
 		
+		Delta = Max(Delta, MinimumDelta)
+		
 		' Assign the value of the inverted delta.
 		InvDelta = 1.0 / Delta
 		
 		Return
 	End
 	
-	' Fields:
+	' Properties:
+	Method IdealFPS:Int() Property
+		Return Self._IdealFPS
+	End
+	
+	Method IdealFPS:Void(Input:Int) Property
+		Self._IdealFPS = Input
+		
+		If (IdealFPS <> 0) Then
+			IdealInterval = 1.0/(1000.0/Float(IdealFPS))
+		Else
+			IdealInterval = 0.0
+		Endif
+		
+		Return
+	End
+	
+	' Fields (Public):
 	
 	' Ideal values:
-	Field IdealFPS:Int
 	Field IdealInterval:Float
 	
 	' Intervals:
@@ -125,11 +188,21 @@ Class DeltaTime
 	' Delta values:
 	Field DeltaLog:Float[Default_DeltaLog_Size]
 	Field DeltaNode:Int
+	
 	Field Delta:Float
+	Field MinimumDelta:Float
 	Field InvDelta:Float
 	
 	' Flags:
 	Field UseUpdateRate:Bool
+	
+	' Fields (Private):
+	Private
+	
+	' Ideal values:
+	Field _IdealFPS:Int
+	
+	Public
 End
 
 ' Functions:
