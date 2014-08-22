@@ -14,17 +14,18 @@ Class DeltaTime
 	' Constant & Global variable(s):
 	Global Default_FPS:Int = 60
 	Global Default_DeltaLog_Size:Int = 20
+	Global Default_MinimumDelta:Float = 0.0
 	
 	' Constructor(s):
-	Method New(MinimumDelta:Float=0.0)
+	Method New(MinimumDelta:Float=Default_MinimumDelta)
 		Construct(MinimumDelta)
 	End
 	
-	Method New(FPS:Int, MinimumDelta:Float=0.0)
+	Method New(FPS:Int, MinimumDelta:Float=Default_MinimumDelta)
 		Construct(FPS, MinimumDelta)
 	End
 	
-	Method Construct:DeltaTime(MinimumDelta:Float=0.0)
+	Method Construct:DeltaTime(MinimumDelta:Float=Default_MinimumDelta)
 		' Local variable(s):
 		Local FPS:= UpdateRate()
 		
@@ -36,7 +37,7 @@ Class DeltaTime
 		Return Construct(FPS)
 	End
 	
-	Method Construct:DeltaTime(FPS:Int, MinimumDelta:Float=0.0)
+	Method Construct:DeltaTime(FPS:Int, MinimumDelta:Float=Default_MinimumDelta)
 		If (FPS = 0) Then
 			FPS = Default_FPS
 		Endif
