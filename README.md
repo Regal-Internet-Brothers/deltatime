@@ -1,4 +1,4 @@
 deltatime
 =========
 
-Basic delta-time functionality for the Monkey X programming language.
+A basic configurable delta-time system for the [Monkey programming language](https://github.com/blitz-research/monkey).
