@@ -6,26 +6,29 @@ Public
 #If BRL_GAMETARGET_IMPLEMENTED
 	Import mojo.app
 #Else
-	Import mojoemulator
+	Import mojoemulator.app
 #End
 
 ' Classes:
 Class DeltaTime
-	' Constant & Global variable(s):
+	' Global variable(s):
+	
+	' Defualts:
 	Global Default_FPS:Int = 60
 	Global Default_DeltaLog_Size:Int = 20
-	Global Default_MinimumDelta:Float = 0.0
+	
+	Global Default_MinimumDelta:Float = 0.0 ' 0.1
 	
 	' Constructor(s):
-	Method New(MinimumDelta:Float=Default_MinimumDelta)
-		Construct(MinimumDelta)
+	Method New(MinimumDelta:Float=Default_MinimumDelta, DeltaLog_Size:Int=Default_DeltaLog_Size)
+		Construct(MinimumDelta, DeltaLog_Size)
 	End
 	
-	Method New(FPS:Int, MinimumDelta:Float=Default_MinimumDelta)
-		Construct(FPS, MinimumDelta)
+	Method New(FPS:Int, MinimumDelta:Float=Default_MinimumDelta, DeltaLog_Size:Int=Default_DeltaLog_Size)
+		Construct(FPS, MinimumDelta, DeltaLog_Size)
 	End
 	
-	Method Construct:DeltaTime(MinimumDelta:Float=Default_MinimumDelta)
+	Method Construct:DeltaTime(MinimumDelta:Float=Default_MinimumDelta, DeltaLog_Size:Int=Default_DeltaLog_Size)
 		' Local variable(s):
 		Local FPS:= UpdateRate()
 		
@@ -34,10 +37,10 @@ Class DeltaTime
 		Endif
 		
 		' Call the main implementation.
-		Return Construct(FPS)
+		Return Construct(FPS, MinimumDelta, DeltaLog_Size)
 	End
 	
-	Method Construct:DeltaTime(FPS:Int, MinimumDelta:Float=Default_MinimumDelta)
+	Method Construct:DeltaTime(FPS:Int, MinimumDelta:Float=Default_MinimumDelta, DeltaLog_Size:Int=Default_DeltaLog_Size)
 		If (FPS = 0) Then
 			FPS = Default_FPS
 		Endif
@@ -53,6 +56,12 @@ Class DeltaTime
 		
 		' Set the minimum delta-value.
 		Self.MinimumDelta = MinimumDelta
+		
+		If (Self.DeltaLog.Length > 0) Then
+			Self.DeltaLog = Self.DeltaLog.Resize(DeltaLog_Size)
+		Else
+			Self.DeltaLog = New Float[DeltaLog_Size]
+		Endif
 		
 		' Return this object so it may be pooled.
 		Return Self
@@ -114,7 +123,7 @@ Class DeltaTime
 	
 	Method ResetLog:Void(DeltaLog:Float[])
 		' Set all of the delta-log's elements to 0.0.
-		For Local Index:Int = 0 Until DeltaLog.Length()
+		For Local Index:= 0 Until DeltaLog.Length
 			DeltaLog[Index] = 0.0
 		Next
 		
@@ -125,7 +134,7 @@ Class DeltaTime
 		' Check if we're supposed to be using the update-rate:
 		If (UseUpdateRate) Then
 			' Check if the update-rate is different from the ideal framerate.
-			If (IdealFPS <> UpdateRate()) Then
+			If (Self._IdealFPS <> UpdateRate()) Then ' IdealFPS
 				' "Reset" using the new update-rate.
 				Reset(UpdateRate(), True)
 			Endif
@@ -135,22 +144,22 @@ Class DeltaTime
 		TimePreviousFrame = TimeCurrentFrame
 		TimeCurrentFrame = Millisecs()
 		
-		' Update intervals:
+		' Update the delta-log based on the number of milliseconds since the last time we did this:
 		DeltaLog[DeltaNode] = Float(TimeCurrentFrame-TimePreviousFrame) * IdealInterval
-		DeltaNode = (DeltaNode+1) Mod DeltaLog.Length()
+		DeltaNode = (DeltaNode+1) Mod DeltaLog.Length
 		
 		' Calculate the current delta:
 		
 		' Assign the delta to 0.0 before anything else.
 		Delta = 0.0
 		
-		' Iterate through the delta-log, and add to the delta.
-		For Local Index:Int = 0 Until DeltaLog.Length()
+		' Iterate through the delta-log, and add to the delta-value.
+		For Local Index:= 0 Until DeltaLog.Length
 			Delta += DeltaLog[Index]
 		Next
 		
 		' Fix the delta value. (Calculate an average/mean)
-		Delta /= DeltaLog.Length()
+		Delta /= DeltaLog.Length
 		
 		Delta = Max(Delta, MinimumDelta)
 		
@@ -161,6 +170,9 @@ Class DeltaTime
 	End
 	
 	' Properties:
+	
+	' The 'IdealFPS' property describes the ideal frame-rate/update-rate
+	' that math/other using this object was built around:
 	Method IdealFPS:Int() Property
 		Return Self._IdealFPS
 	End
@@ -168,39 +180,59 @@ Class DeltaTime
 	Method IdealFPS:Void(Input:Int) Property
 		Self._IdealFPS = Input
 		
-		If (IdealFPS <> 0) Then
-			IdealInterval = 1.0/(1000.0/Float(IdealFPS))
-		Else
-			IdealInterval = 0.0
-		Endif
+		CalculateIdealInterval()
 		
 		Return
 	End
 	
+	Method CalculateIdealInterval:Float()
+		If (Self._IdealFPS <> 0) Then ' IdealFPS
+			IdealInterval = 1.0/(1000.0/Float(Self._IdealFPS)) ' IdealFPS
+		Else
+			IdealInterval = 0.0
+		Endif
+		
+		' Return the calculated interval.
+		Return IdealInterval
+	End
+	
 	' Fields (Public):
 	
-	' Ideal values:
+	' The ideal interval this application should run at.
 	Field IdealInterval:Float
 	
-	' Intervals:
+	' These variables are used to take snapshots of the up-time of this
+	' application (In milliseconds); they are then used to calculate a "delta-value":
 	Field TimePreviousFrame:Int
 	Field TimeCurrentFrame:Int
 	
-	' Delta values:
-	Field DeltaLog:Float[Default_DeltaLog_Size]
+	' This acts as a log of "frame-differentials", which are then
+	' processed into the active "delta-value" of the current frame.
+	Field DeltaLog:Float[]
+	
+	' The current "node" (Position) in the 'DeltaLog' array.
 	Field DeltaNode:Int
 	
+	' The last delta-value calculated from the 'DeltaLog'.
 	Field Delta:Float
+	
+	' The minimum value 'Delta' can be.
 	Field MinimumDelta:Float
+	
+	' A cache containing the inverse form of 'Delta'.
 	Field InvDelta:Float
 	
-	' Flags:
+	' Booleans / Flags:
+	
+	' This describes if the update-rate of the application should be used.
 	Field UseUpdateRate:Bool
 	
 	' Fields (Private):
 	Private
 	
 	' Ideal values:
+	
+	' This acts as the internal storage for the 'IdealFPS' property.
 	Field _IdealFPS:Int
 	
 	Public
