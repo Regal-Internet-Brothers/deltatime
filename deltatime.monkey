@@ -124,7 +124,7 @@ Class DeltaTime
 	Method ResetLog:Void(DeltaLog:Float[])
 		' Set all of the delta-log's elements to 0.0.
 		For Local Index:= 0 Until DeltaLog.Length
-			DeltaLog[Index] = 0.0
+			DeltaLog[Index] = 1.0
 		Next
 		
 		Return
