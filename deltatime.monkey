@@ -48,20 +48,24 @@ Class DeltaTime
 		' Assign the ideal frame-rate to the input.
 		Self.IdealFPS = FPS
 		
-		' Set the previous frame's time value to the current time.
-		Self.TimePreviousFrame = Millisecs()
-		
-		' Assign the current frame's time-value to the same as the previous frame.
-		Self.TimeCurrentFrame = Self.TimePreviousFrame ' Millisecs()
-		
 		' Set the minimum delta-value.
 		Self.MinimumDelta = MinimumDelta
 		
-		If (Self.DeltaLog.Length > 0) Then
-			Self.DeltaLog = Self.DeltaLog.Resize(DeltaLog_Size)
+		If (DeltaLog_Size > 0) Then
+			If (Self.DeltaLog.Length > 0) Then
+				Self.DeltaLog = Self.DeltaLog.Resize(DeltaLog_Size)
+			Else
+				Self.DeltaLog = New Float[DeltaLog_Size]
+			Endif
 		Else
-			Self.DeltaLog = New Float[DeltaLog_Size]
+			If (Self.DeltaLog.Length > 0) Then
+				Self.DeltaLog = []
+			Endif
 		Endif
+		
+		LogScalar = (((1.5 / Self.DeltaLog.Length)) * 0.75)
+		
+		Reset()
 		
 		' Return this object so it may be pooled.
 		Return Self
@@ -103,8 +107,8 @@ Class DeltaTime
 		' Assign the current frame's time-value to the same as the previous frame.
 		TimeCurrentFrame = Millisecs()
 		
-		' Set the 'delta' to 0.0.
-		Delta = 0.0
+		' Set our 'Delta' to 1.0.
+		Delta = 1.0
 		
 		' Set the delta-node to zero.
 		DeltaNode = 0
@@ -122,7 +126,7 @@ Class DeltaTime
 	End
 	
 	Method ResetLog:Void(DeltaLog:Float[])
-		' Set all of the delta-log's elements to 0.0.
+		' Set all of the delta-log's elements to 1.0.
 		For Local Index:= 0 Until DeltaLog.Length
 			DeltaLog[Index] = 1.0
 		Next
@@ -140,31 +144,40 @@ Class DeltaTime
 			Endif
 		Endif
 		
-		' Capture the current time (In milliseconds):
+		' Capture the previous time-point, then capture the current one (Milliseconds):
 		TimePreviousFrame = TimeCurrentFrame
 		TimeCurrentFrame = Millisecs()
 		
-		' Update the delta-log based on the number of milliseconds since the last time we did this:
-		DeltaLog[DeltaNode] = Float(TimeCurrentFrame-TimePreviousFrame) * IdealInterval
-		DeltaNode = (DeltaNode+1) Mod DeltaLog.Length
-		
 		' Calculate the current delta:
 		
-		' Assign the delta to 0.0 before anything else.
-		Delta = 0.0
+		' Calculate this frame's delta-value.
+		Local FrameTime:= (Float(TimeCurrentFrame-TimePreviousFrame) * IdealInterval)
 		
-		' Iterate through the delta-log, and add to the delta-value.
-		For Local Index:= 0 Until DeltaLog.Length
-			Delta += DeltaLog[Index]
-		Next
-		
-		' Fix the delta value. (Calculate an average/mean)
-		Delta /= DeltaLog.Length
-		
-		Delta = Max(Delta, MinimumDelta)
+		' Check if we have a log to work with:
+		If (DeltaLog.Length > 0) Then
+			' Update the delta-log based on the current frame-time.
+			DeltaLog[DeltaNode] = FrameTime
+			
+			' Move to the next node in the delta-log.
+			DeltaNode = ((DeltaNode+1) Mod DeltaLog.Length)
+			
+			' Allocate a temporary delta-value.
+			Local Value:= 0.0 ' 1.0
+			
+			' Iterate through the delta-log, and add to our new delta.
+			For Local Index:= 0 Until DeltaLog.Length
+				Value += DeltaLog[Index] ' *=
+			Next
+			
+			' Fix the our delta, and apply it to this object. (Calculate an average/mean)
+			Delta = Max(Value * LogScalar, MinimumDelta)
+		Else
+			' Use this frame's time-value directly.
+			Delta = FrameTime
+		Endif
 		
 		' Assign the value of the inverted delta.
-		InvDelta = 1.0 / Delta
+		InvDelta = (1.0 / Delta)
 		
 		Return
 	End
@@ -187,7 +200,7 @@ Class DeltaTime
 	
 	Method CalculateIdealInterval:Float()
 		If (Self._IdealFPS <> 0) Then ' IdealFPS
-			IdealInterval = 1.0/(1000.0/Float(Self._IdealFPS)) ' IdealFPS
+			IdealInterval = (Float(Self._IdealFPS) * 0.001) ' 1000 ' IdealFPS
 		Else
 			IdealInterval = 0.0
 		Endif
@@ -212,6 +225,9 @@ Class DeltaTime
 	
 	' The current "node" (Position) in the 'DeltaLog' array.
 	Field DeltaNode:Int
+	
+	' This will act as our scalar when approximating 'Delta'.
+	Field LogScalar:Float
 	
 	' The last delta-value calculated from the 'DeltaLog'.
 	Field Delta:Float
