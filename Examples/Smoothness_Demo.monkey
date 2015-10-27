@@ -25,7 +25,7 @@ Public
 Import mojo2
 
 #If SMOOTHNESS_DEMO_DELTATIME
-	Import deltatime
+	Import regal.deltatime
 #End
 
 ' Classes:
@@ -47,7 +47,7 @@ Class Application Extends App Final
 		Graphics = New Canvas()
 		
 		#If SMOOTHNESS_DEMO_DELTATIME
-			DeltaTime = New DeltaTime(60, 0.0, 20)
+			DeltaTime = New DeltaTime(60, 0.0, 4)
 		#End
 		
 		Shader.SetDefaultShader(Shader.FastShader())
