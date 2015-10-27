@@ -6,7 +6,7 @@ Public
 #If BRL_GAMETARGET_IMPLEMENTED
 	Import mojo.app
 #Else
-	Import mojoemulator.app
+	Import regal.mojoemulator.app
 #End
 
 ' Classes:
