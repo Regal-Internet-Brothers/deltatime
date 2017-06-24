@@ -63,7 +63,7 @@ Class DeltaTime
 			Endif
 		Endif
 		
-		LogScalar = (((1.5 / Self.DeltaLog.Length)) * 0.75)
+		Self.LogScalar = (((1.5 / Self.DeltaLog.Length)) * 0.75)
 		
 		Reset()
 		
@@ -198,6 +198,9 @@ Class DeltaTime
 		Return
 	End
 	
+	' Methods (Protected):
+	Protected
+	
 	Method CalculateIdealInterval:Float()
 		If (Self._IdealFPS <> 0) Then ' IdealFPS
 			IdealInterval = (Float(Self._IdealFPS) * 0.001) ' 1000 ' IdealFPS
@@ -208,6 +211,8 @@ Class DeltaTime
 		' Return the calculated interval.
 		Return IdealInterval
 	End
+	
+	Public
 	
 	' Fields (Public):
 	
